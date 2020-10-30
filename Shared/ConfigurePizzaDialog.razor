@@ -1,0 +1,109 @@
+@inject HttpClient httpClient
+
+<div class="dialog-container">
+    <div class="dialog">
+        <div class="dialog-title">
+            <h2>@Pizza.Special.Name</h2>
+            @Pizza.Special.Description
+        </div>
+        <form class="dialog-body" action="">
+            <div>
+                <label>Tamaño:</label>
+                <input type="range" 
+                    min="@Pizza.MINIMUM_SIZE" 
+                    max="@Pizza.MAXIMUM_SIZE" 
+                    step="@Pizza.INCREMENT_SIZE" 
+                    @bind="@Pizza.Size"
+                    @bind:event="oninput"/>
+                <span class="size-label">
+                    @(Pizza.Size) cm ($@(Pizza.GetFormattedTotalPrice()))
+                </span>
+            </div>
+            <div>
+                <label for="">Complementos adicionales:</label>
+                @if (Toppings is null) {
+                    <select class="custom-select" disabled>
+                        <option value="">(Cargando...)</option>
+                    </select>
+                } else if(Pizza.Toppings.Count >= 6) {
+                    <div>(Máximo de toppings seleccionados)</div>
+                } else {
+                    <select class="custom-select" @onchange="@ToppingSelected">
+                        <option value="-1" disabled selected>(Seleccionar toppings)</option>
+                        @for (int i = 0; i < Toppings.Count; i++)
+                        {
+                            <option value="@i">
+                                @Toppings[i].Name - ($@Toppings[i].GetFormattedPrice())
+                            </option>
+                        }
+                    </select>
+                }
+            </div>
+            <div class="toppings">
+                @foreach (var pizzaTopping in Pizza.Toppings)
+                {
+                    <div class="topping">
+                        @pizzaTopping.Topping.Name
+                        <span class="topping-price">
+                            @pizzaTopping.Topping.GetFormattedPrice()
+                        </span>
+                        <button type="button" class="delete-topping"
+                            @onclick="@(() => RemoveTopping(pizzaTopping.Topping))">
+                            X
+                        </button>
+                    </div>
+                }
+            </div>
+        </form>
+        <div class="dialog-buttons">
+            <button class="btn btn-secondary mr-auto" @onclick="OnCancel">Cancelar</button>
+            <span class="mr-center">
+                Precio: 
+                <span class="price">
+                    @(Pizza.GetFormattedTotalPrice())
+                </span>
+            </span>
+            <button class="btn btn-success ml-auto" @onclick="OnConfirm">Ordenar ></button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] 
+    public PizzaViewModel Pizza { get; set; }
+    [Parameter] 
+    public EventCallback OnCancel { get; set; }
+    [Parameter] 
+    public EventCallback OnConfirm { get; set; }
+    
+    List<ToppingViewModel> Toppings { get; set; }
+
+    protected async override Task OnInitializedAsync()
+    {
+        Toppings = await httpClient.GetFromJsonAsync<List<ToppingViewModel>>("v1/toppings", 
+            options: JsonSetting.jsonSerializerOptions);
+    }
+
+    void AddTopping(ToppingViewModel topping) 
+    {
+        if (Pizza.Toppings.Find(x => x.Topping.Equals(topping)) is null)
+        {
+            Pizza.Toppings.Add(new PizzaToppingViewModel {
+                Topping = topping
+            });
+        }
+    }
+
+    void RemoveTopping(ToppingViewModel topping)
+    {
+        Pizza.Toppings.RemoveAll(x => x.Topping.Equals(topping));
+    }
+
+    void ToppingSelected(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value.ToString(), out var index) && index >= 0)
+        {
+            this.AddTopping(Toppings[index]);
+        }
+    }
+}
