@@ -1,0 +1,58 @@
+﻿@page "/"
+@inject HttpClient httpClient
+
+<div class="main">
+    <ul class="pizza-cards">
+        @if (pizzaSpecials is {})
+        {
+            foreach (var pizza in pizzaSpecials)
+            {
+                <li @onclick="@(() => ShowConfigurePizzaDialog(pizza))" style="background-image: url('@pizza.ImageUrl');">
+                    <div class="pizza-info"> 
+                        <span class="title">@pizza.Name</span>
+                        @pizza.Description
+                        <span class="price">@pizza.GetFormattedBasePrice()</span>
+                    </div>
+                </li>
+            }
+        }
+         
+    </ul>
+</div>
+
+@if (showingConfigureDialog)
+{
+    <ConfigurePizzaDialog Pizza="configuringPizza" 
+        OnCancel="CancelConfigurePizzaDialog"></ConfigurePizzaDialog>
+}
+
+@code {
+    bool showingConfigureDialog;
+    PizzaViewModel configuringPizza;
+    List<PizzaSpecialViewModel> pizzaSpecials;
+
+    protected async override Task OnInitializedAsync()
+    {
+        pizzaSpecials = await httpClient.GetFromJsonAsync<List<PizzaSpecialViewModel>>("v1/specials-pizzas"/*, 
+            options: JsonSetting.jsonSerializerOptions*/);
+    }
+
+    void ShowConfigurePizzaDialog(PizzaSpecialViewModel pizzaSpecial) 
+    {
+        configuringPizza = new PizzaViewModel()
+        {
+            Special = pizzaSpecial,
+            SpecialId = pizzaSpecial.Id,
+            Size = PizzaViewModel.DEFAULT_SIZE,
+            Toppings = new List<PizzaToppingViewModel>()
+        };
+
+        showingConfigureDialog = true;
+    }
+
+    void CancelConfigurePizzaDialog()
+    {
+        configuringPizza = null;
+        showingConfigureDialog = false;
+    }
+}
